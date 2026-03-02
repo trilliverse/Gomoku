@@ -25,6 +25,11 @@ class GamePhase(Enum):
     DRAW = auto()
 
 
+class GameMode(Enum):
+    HUMAN_VS_HUMAN = auto()
+    HUMAN_VS_AI = auto()
+
+
 @dataclass(frozen=True)
 class MoveResult:
     ok: bool

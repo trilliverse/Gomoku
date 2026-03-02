@@ -14,6 +14,8 @@ from .constants import (
     GRID_COLOR,
     GRID_SPACING,
     MARGIN,
+    MODE_HUMAN_VS_AI,
+    MODE_HUMAN_VS_HUMAN,
     STATUS_READY,
     STONE_RADIUS,
     WHITE_STONE_COLOR,
@@ -30,8 +32,10 @@ class GomokuUI:
 
         self._board_click_handler: Optional[Callable[[int, int], None]] = None
         self._restart_handler: Optional[Callable[[], None]] = None
+        self._mode_change_handler: Optional[Callable[[str], None]] = None
 
         self._status_var = tk.StringVar(value=STATUS_READY)
+        self._mode_var = tk.StringVar(value=MODE_HUMAN_VS_HUMAN)
 
         self.canvas = tk.Canvas(
             self.root,
@@ -48,6 +52,24 @@ class GomokuUI:
 
         self.restart_button = tk.Button(controls, text="Restart", width=12, command=self._on_restart)
         self.restart_button.pack(side=tk.LEFT)
+
+        mode_frame = tk.Frame(controls)
+        mode_frame.pack(side=tk.LEFT, padx=(12, 0))
+
+        tk.Radiobutton(
+            mode_frame,
+            text=MODE_HUMAN_VS_HUMAN,
+            variable=self._mode_var,
+            value=MODE_HUMAN_VS_HUMAN,
+            command=self._on_mode_change,
+        ).pack(side=tk.LEFT)
+        tk.Radiobutton(
+            mode_frame,
+            text=MODE_HUMAN_VS_AI,
+            variable=self._mode_var,
+            value=MODE_HUMAN_VS_AI,
+            command=self._on_mode_change,
+        ).pack(side=tk.LEFT, padx=(8, 0))
 
         self.status_label = tk.Label(controls, textvariable=self._status_var, anchor="w")
         self.status_label.pack(side=tk.LEFT, padx=(12, 0), fill=tk.X, expand=True)
@@ -92,6 +114,15 @@ class GomokuUI:
     def bind_restart(self, handler: Callable[[], None]) -> None:
         self._restart_handler = handler
 
+    def bind_mode_change(self, handler: Callable[[str], None]) -> None:
+        self._mode_change_handler = handler
+
+    def current_mode(self) -> str:
+        return self._mode_var.get()
+
+    def schedule_after(self, ms: int, callback: Callable[[], None]) -> str:
+        return str(self.root.after(ms, callback))
+
     def reset_board_view(self) -> None:
         self.canvas.delete("stone")
         self.draw_grid()
@@ -104,6 +135,10 @@ class GomokuUI:
     def _on_restart(self) -> None:
         if self._restart_handler is not None:
             self._restart_handler()
+
+    def _on_mode_change(self) -> None:
+        if self._mode_change_handler is not None:
+            self._mode_change_handler(self._mode_var.get())
 
     @staticmethod
     def _pixel_to_grid(x: int, y: int) -> tuple[int, int]:
