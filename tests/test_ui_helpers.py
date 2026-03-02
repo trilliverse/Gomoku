@@ -19,3 +19,12 @@ def test_should_show_hover_logic() -> None:
     assert not GomokuUI.should_show_hover(True, False, True, False)
     assert not GomokuUI.should_show_hover(True, True, False, False)
     assert not GomokuUI.should_show_hover(True, True, True, True)
+
+
+def test_hover_style_follows_current_player() -> None:
+    black_style = GomokuUI.hover_style_for(Player.BLACK)
+    white_style = GomokuUI.hover_style_for(Player.WHITE)
+    fallback_style = GomokuUI.hover_style_for(None)
+    assert black_style != white_style
+    assert black_style != fallback_style
+    assert white_style != fallback_style

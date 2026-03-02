@@ -25,6 +25,7 @@ class FakeUI:
         self.reset_count = 0
         self._mode = "Human vs Human"
         self._hover_validation_handler: Callable[[int, int], bool] | None = None
+        self._hover_player_provider: Callable[[], Player] | None = None
 
     def bind_board_click(self, handler: Callable[[int, int], None]) -> None:
         self.board_click_handler = handler
@@ -44,6 +45,9 @@ class FakeUI:
 
     def bind_hover_validation(self, handler: Callable[[int, int], bool]) -> None:
         self._hover_validation_handler = handler
+
+    def bind_hover_player_provider(self, handler: Callable[[], Player]) -> None:
+        self._hover_player_provider = handler
 
     @staticmethod
     def should_show_hover(

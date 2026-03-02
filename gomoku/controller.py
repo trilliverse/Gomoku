@@ -30,6 +30,7 @@ class GameController:
         self._ui.bind_restart(self.on_restart)
         self._ui.bind_mode_change(self.on_mode_change)
         self._ui.bind_hover_validation(self._can_show_hover)
+        self._ui.bind_hover_player_provider(self._hover_player)
         self._ui.set_status(self._current_player_status())
 
     def on_board_click(self, row: int, col: int) -> None:
@@ -163,3 +164,6 @@ class GameController:
             game_running=self._game.phase() == GamePhase.RUNNING,
             ai_pending=self._ai_pending,
         )
+
+    def _hover_player(self) -> Player:
+        return self._game.current_player()

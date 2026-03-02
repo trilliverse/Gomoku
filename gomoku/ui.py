@@ -15,6 +15,12 @@ from .constants import (
     GRID_COLOR,
     GRID_SPACING,
     HOVER_FILL_COLOR,
+    HOVER_GHOST_BLACK_FILL,
+    HOVER_GHOST_BLACK_OUTLINE,
+    HOVER_GHOST_RADIUS,
+    HOVER_GHOST_STIPPLE,
+    HOVER_GHOST_WHITE_FILL,
+    HOVER_GHOST_WHITE_OUTLINE,
     HOVER_OUTLINE_COLOR,
     HOVER_RADIUS,
     LAST_MOVE_MARK_BLACK_ON_WHITE,
@@ -50,6 +56,7 @@ class GomokuUI:
         self._restart_handler: Optional[Callable[[], None]] = None
         self._mode_change_handler: Optional[Callable[[str], None]] = None
         self._hover_validation_handler: Optional[Callable[[int, int], bool]] = None
+        self._hover_player_provider: Optional[Callable[[], Player]] = None
         self._hover_cell: tuple[int, int] | None = None
 
         self._status_var = tk.StringVar(value=STATUS_READY)
@@ -200,6 +207,9 @@ class GomokuUI:
     def bind_hover_validation(self, handler: Callable[[int, int], bool]) -> None:
         self._hover_validation_handler = handler
 
+    def bind_hover_player_provider(self, handler: Callable[[], Player]) -> None:
+        self._hover_player_provider = handler
+
     def current_mode(self) -> str:
         return self._mode_var.get()
 
@@ -222,6 +232,26 @@ class GomokuUI:
         is_on_board: bool, is_empty: bool, game_running: bool, ai_pending: bool
     ) -> bool:
         return is_on_board and is_empty and game_running and not ai_pending
+
+    @staticmethod
+    def hover_style_for(
+        player: Player | None,
+    ) -> tuple[str, str, str | None, int]:
+        if player == Player.BLACK:
+            return (
+                HOVER_GHOST_BLACK_FILL,
+                HOVER_GHOST_BLACK_OUTLINE,
+                HOVER_GHOST_STIPPLE,
+                HOVER_GHOST_RADIUS,
+            )
+        if player == Player.WHITE:
+            return (
+                HOVER_GHOST_WHITE_FILL,
+                HOVER_GHOST_WHITE_OUTLINE,
+                HOVER_GHOST_STIPPLE,
+                HOVER_GHOST_RADIUS,
+            )
+        return (HOVER_FILL_COLOR, HOVER_OUTLINE_COLOR, None, HOVER_RADIUS)
 
     def _draw_star_points(self) -> None:
         for row, col in STAR_POINTS:
@@ -256,15 +286,26 @@ class GomokuUI:
         self.canvas.delete("hover")
         center_x = MARGIN + col * GRID_SPACING
         center_y = MARGIN + row * GRID_SPACING
+        player = (
+            self._hover_player_provider()
+            if self._hover_player_provider is not None
+            else None
+        )
+        fill, outline, stipple, radius = self.hover_style_for(player)
+        kwargs: dict[str, object] = {
+            "fill": fill,
+            "outline": outline,
+            "width": 1,
+            "tags": "hover",
+        }
+        if stipple is not None:
+            kwargs["stipple"] = stipple
         self.canvas.create_oval(
-            center_x - HOVER_RADIUS,
-            center_y - HOVER_RADIUS,
-            center_x + HOVER_RADIUS,
-            center_y + HOVER_RADIUS,
-            fill=HOVER_FILL_COLOR,
-            outline=HOVER_OUTLINE_COLOR,
-            width=1,
-            tags="hover",
+            center_x - radius,
+            center_y - radius,
+            center_x + radius,
+            center_y + radius,
+            **kwargs,
         )
         self._hover_cell = (row, col)
 
