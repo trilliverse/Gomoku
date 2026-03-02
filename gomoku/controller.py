@@ -29,10 +29,12 @@ class GameController:
         self._ui.bind_board_click(self.on_board_click)
         self._ui.bind_restart(self.on_restart)
         self._ui.bind_mode_change(self.on_mode_change)
+        self._ui.bind_hover_validation(self._can_show_hover)
         self._ui.set_status(self._current_player_status())
 
     def on_board_click(self, row: int, col: int) -> None:
         if self._ai_pending:
+            self._ui.clear_hover()
             self._ui.set_status(STATUS_WAIT_AI)
             return
 
@@ -46,6 +48,7 @@ class GameController:
         self._ai_pending = False
         self._game.new_game()
         self._ui.reset_board_view()
+        self._ui.clear_overlays()
         self._ui.set_status(self._current_player_status())
 
     def on_mode_change(self, mode_value: str) -> None:
@@ -60,6 +63,7 @@ class GameController:
         if self._ai_pending or not self._is_ai_turn():
             return
         self._ai_pending = True
+        self._ui.clear_hover()
         self._ui.set_status(STATUS_AI_THINKING)
         self._ui.schedule_after(300, self._execute_ai_move)
 
@@ -124,11 +128,15 @@ class GameController:
             win_text = (
                 STATUS_WIN_BLACK if result.winner == Player.BLACK else STATUS_WIN_WHITE
             )
+            if result.winning_line is not None:
+                self._ui.highlight_winning_line(result.winning_line)
+            self._ui.clear_hover()
             self._ui.set_status(win_text)
             self._ui.show_info(win_text)
             return False
 
         if result.phase == GamePhase.DRAW:
+            self._ui.clear_hover()
             self._ui.set_status(STATUS_DRAW)
             self._ui.show_info(STATUS_DRAW)
             return False
@@ -146,3 +154,12 @@ class GameController:
 
     def _current_player_status(self) -> str:
         return f"Current player: {self._game.current_player().label}"
+
+    def _can_show_hover(self, row: int, col: int) -> bool:
+        board = self._game.board
+        return self._ui.should_show_hover(
+            is_on_board=board.is_on_board(row, col),
+            is_empty=board.is_empty(row, col),
+            game_running=self._game.phase() == GamePhase.RUNNING,
+            ai_pending=self._ai_pending,
+        )

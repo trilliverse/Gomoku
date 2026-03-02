@@ -36,3 +36,4 @@ class MoveResult:
     reason: str | None = None
     winner: Player | None = None
     phase: GamePhase = GamePhase.RUNNING
+    winning_line: list[tuple[int, int]] | None = None

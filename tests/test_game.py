@@ -47,6 +47,8 @@ def test_win_and_no_further_moves_after_finish() -> None:
     assert last_result is not None
     assert last_result.ok
     assert last_result.winner == Player.BLACK
+    assert last_result.winning_line is not None
+    assert len(last_result.winning_line) == 5
     assert game.phase() == GamePhase.WIN_BLACK
 
     blocked = game.play(2, 2)

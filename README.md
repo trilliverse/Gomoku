@@ -12,6 +12,10 @@ A modular, object-oriented Gomoku implementation for coursework.
 - Built-in greedy AI (attack + defense scoring)
 - Status feedback for current player and invalid moves
 - Win / draw popup messages
+- Star points rendered on Tianyuan and four hoshi points
+- Hover hint on valid empty intersections
+- Last-move center marker (white on black stone / black on white stone)
+- Winning five-stone highlight rings
 - AI extension interface (`gomoku/ai/base.py`)
 
 ## Project Structure
@@ -26,7 +30,7 @@ A modular, object-oriented Gomoku implementation for coursework.
 - `gomoku/controller.py`: event orchestration
 - `gomoku/ai/base.py`: AI interface
 - `gomoku/ai/greedy.py`: greedy AI implementation
-- `tests/`: unit tests for rules and game service
+- `tests/`: unit tests for rules, game flow, AI, controller, UI helpers
 
 ## Requirements
 

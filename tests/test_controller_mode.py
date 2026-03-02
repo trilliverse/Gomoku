@@ -5,7 +5,7 @@ from gomoku.board import Board
 from gomoku.constants import MODE_HUMAN_VS_AI, STATUS_WAIT_AI
 from gomoku.controller import GameController
 from gomoku.game import GameService
-from gomoku.models import Player
+from gomoku.models import GamePhase, Player
 from gomoku.rules import RuleEngine
 
 
@@ -19,8 +19,12 @@ class FakeUI:
         self.infos: list[str] = []
         self.stones: list[tuple[int, int, Player]] = []
         self.scheduled: list[tuple[int, Callable[[], None]]] = []
+        self.winning_lines: list[list[tuple[int, int]]] = []
+        self.clear_overlays_count = 0
+        self.clear_hover_count = 0
         self.reset_count = 0
         self._mode = "Human vs Human"
+        self._hover_validation_handler: Callable[[int, int], bool] | None = None
 
     def bind_board_click(self, handler: Callable[[int, int], None]) -> None:
         self.board_click_handler = handler
@@ -38,8 +42,26 @@ class FakeUI:
         self.scheduled.append((ms, callback))
         return str(len(self.scheduled))
 
+    def bind_hover_validation(self, handler: Callable[[int, int], bool]) -> None:
+        self._hover_validation_handler = handler
+
+    @staticmethod
+    def should_show_hover(
+        is_on_board: bool, is_empty: bool, game_running: bool, ai_pending: bool
+    ) -> bool:
+        return is_on_board and is_empty and game_running and not ai_pending
+
     def draw_stone(self, row: int, col: int, player: Player) -> None:
         self.stones.append((row, col, player))
+
+    def highlight_winning_line(self, points: list[tuple[int, int]]) -> None:
+        self.winning_lines.append(points)
+
+    def clear_overlays(self) -> None:
+        self.clear_overlays_count += 1
+
+    def clear_hover(self) -> None:
+        self.clear_hover_count += 1
 
     def set_status(self, text: str) -> None:
         self.statuses.append(text)
@@ -116,3 +138,31 @@ def test_hvh_mode_does_not_schedule_ai() -> None:
     controller, _, ui = _new_controller(FixedAI((7, 8)))
     controller.on_board_click(7, 7)
     assert ui.scheduled == []
+
+
+def test_winning_move_highlights_five_stones() -> None:
+    controller, _, ui = _new_controller(FixedAI((7, 8)))
+    sequence = [
+        (0, 0),
+        (1, 0),
+        (0, 1),
+        (1, 1),
+        (0, 2),
+        (1, 2),
+        (0, 3),
+        (1, 3),
+        (0, 4),
+    ]
+    for row, col in sequence:
+        controller.on_board_click(row, col)
+
+    assert len(ui.winning_lines) == 1
+    assert len(ui.winning_lines[0]) == 5
+
+
+def test_restart_clears_overlays() -> None:
+    controller, game, ui = _new_controller(FixedAI((7, 8)))
+    controller.on_board_click(7, 7)
+    assert game.phase() == GamePhase.RUNNING
+    controller.on_restart()
+    assert ui.clear_overlays_count >= 1

@@ -1,4 +1,4 @@
-﻿"""Tkinter-based view layer for Gomoku."""
+"""Tkinter-based view layer for Gomoku."""
 
 from __future__ import annotations
 
@@ -11,15 +11,30 @@ from .constants import (
     BOARD_SIZE,
     CANVAS_BG_COLOR,
     CANVAS_SIZE,
+    CONTROL_BG_COLOR,
     GRID_COLOR,
     GRID_SPACING,
+    HOVER_FILL_COLOR,
+    HOVER_OUTLINE_COLOR,
+    HOVER_RADIUS,
+    LAST_MOVE_MARK_BLACK_ON_WHITE,
+    LAST_MOVE_MARK_RADIUS,
+    LAST_MOVE_MARK_WHITE_ON_BLACK,
     MARGIN,
     MODE_HUMAN_VS_AI,
     MODE_HUMAN_VS_HUMAN,
+    STAR_POINT_RADIUS,
+    STAR_POINTS,
+    STATUS_BG_COLOR,
+    STATUS_BORDER_COLOR,
     STATUS_READY,
     STONE_RADIUS,
+    UI_FONT_FAMILY,
+    UI_FONT_SIZE,
     WHITE_STONE_COLOR,
     WINDOW_TITLE,
+    WIN_HIGHLIGHT_COLOR,
+    WIN_HIGHLIGHT_WIDTH,
 )
 from .models import Player
 
@@ -29,13 +44,17 @@ class GomokuUI:
         self.root = root
         self.root.title(WINDOW_TITLE)
         self.root.resizable(False, False)
+        self.root.configure(bg=CONTROL_BG_COLOR)
 
         self._board_click_handler: Optional[Callable[[int, int], None]] = None
         self._restart_handler: Optional[Callable[[], None]] = None
         self._mode_change_handler: Optional[Callable[[str], None]] = None
+        self._hover_validation_handler: Optional[Callable[[int, int], bool]] = None
+        self._hover_cell: tuple[int, int] | None = None
 
         self._status_var = tk.StringVar(value=STATUS_READY)
         self._mode_var = tk.StringVar(value=MODE_HUMAN_VS_HUMAN)
+        self._font = (UI_FONT_FAMILY, UI_FONT_SIZE)
 
         self.canvas = tk.Canvas(
             self.root,
@@ -46,14 +65,26 @@ class GomokuUI:
         )
         self.canvas.pack(padx=10, pady=(10, 6))
         self.canvas.bind("<Button-1>", self._on_canvas_click)
+        self.canvas.bind("<Motion>", self._on_canvas_motion)
+        self.canvas.bind("<Leave>", self._on_canvas_leave)
 
-        controls = tk.Frame(self.root)
+        controls = tk.Frame(self.root, bg=CONTROL_BG_COLOR)
         controls.pack(fill=tk.X, padx=10, pady=(0, 10))
 
-        self.restart_button = tk.Button(controls, text="Restart", width=12, command=self._on_restart)
-        self.restart_button.pack(side=tk.LEFT)
+        self.restart_button = tk.Button(
+            controls,
+            text="Restart",
+            width=12,
+            command=self._on_restart,
+            font=self._font,
+            bg="#F9F4E8",
+            relief=tk.GROOVE,
+            borderwidth=1,
+            activebackground="#EFE5CC",
+        )
+        self.restart_button.pack(side=tk.LEFT, pady=2)
 
-        mode_frame = tk.Frame(controls)
+        mode_frame = tk.Frame(controls, bg=CONTROL_BG_COLOR)
         mode_frame.pack(side=tk.LEFT, padx=(12, 0))
 
         tk.Radiobutton(
@@ -62,6 +93,9 @@ class GomokuUI:
             variable=self._mode_var,
             value=MODE_HUMAN_VS_HUMAN,
             command=self._on_mode_change,
+            font=self._font,
+            bg=CONTROL_BG_COLOR,
+            activebackground=CONTROL_BG_COLOR,
         ).pack(side=tk.LEFT)
         tk.Radiobutton(
             mode_frame,
@@ -69,20 +103,40 @@ class GomokuUI:
             variable=self._mode_var,
             value=MODE_HUMAN_VS_AI,
             command=self._on_mode_change,
+            font=self._font,
+            bg=CONTROL_BG_COLOR,
+            activebackground=CONTROL_BG_COLOR,
         ).pack(side=tk.LEFT, padx=(8, 0))
 
-        self.status_label = tk.Label(controls, textvariable=self._status_var, anchor="w")
+        self.status_label = tk.Label(
+            controls,
+            textvariable=self._status_var,
+            anchor="w",
+            font=self._font,
+            bg=STATUS_BG_COLOR,
+            relief=tk.GROOVE,
+            borderwidth=1,
+            highlightthickness=1,
+            highlightbackground=STATUS_BORDER_COLOR,
+            padx=8,
+        )
         self.status_label.pack(side=tk.LEFT, padx=(12, 0), fill=tk.X, expand=True)
 
         self.draw_grid()
 
     def draw_grid(self) -> None:
         self.canvas.delete("grid")
+        self.canvas.delete("star")
         for index in range(BOARD_SIZE):
             x = MARGIN + index * GRID_SPACING
             y = MARGIN + index * GRID_SPACING
-            self.canvas.create_line(MARGIN, y, CANVAS_SIZE - MARGIN, y, fill=GRID_COLOR, tags="grid")
-            self.canvas.create_line(x, MARGIN, x, CANVAS_SIZE - MARGIN, fill=GRID_COLOR, tags="grid")
+            self.canvas.create_line(
+                MARGIN, y, CANVAS_SIZE - MARGIN, y, fill=GRID_COLOR, tags="grid"
+            )
+            self.canvas.create_line(
+                x, MARGIN, x, CANVAS_SIZE - MARGIN, fill=GRID_COLOR, tags="grid"
+            )
+        self._draw_star_points()
 
     def draw_stone(self, row: int, col: int, player: Player) -> None:
         center_x = MARGIN + col * GRID_SPACING
@@ -98,6 +152,32 @@ class GomokuUI:
             width=1,
             tags="stone",
         )
+        self._draw_last_move_marker(row, col, player)
+
+    def highlight_winning_line(self, points: list[tuple[int, int]]) -> None:
+        self.canvas.delete("win_highlight")
+        for row, col in points:
+            center_x = MARGIN + col * GRID_SPACING
+            center_y = MARGIN + row * GRID_SPACING
+            radius = STONE_RADIUS + 3
+            self.canvas.create_oval(
+                center_x - radius,
+                center_y - radius,
+                center_x + radius,
+                center_y + radius,
+                outline=WIN_HIGHLIGHT_COLOR,
+                width=WIN_HIGHLIGHT_WIDTH,
+                tags="win_highlight",
+            )
+
+    def clear_overlays(self) -> None:
+        self.clear_hover()
+        self.canvas.delete("last_move_marker")
+        self.canvas.delete("win_highlight")
+
+    def clear_hover(self) -> None:
+        self._hover_cell = None
+        self.canvas.delete("hover")
 
     def set_status(self, text: str) -> None:
         self._status_var.set(text)
@@ -117,6 +197,9 @@ class GomokuUI:
     def bind_mode_change(self, handler: Callable[[str], None]) -> None:
         self._mode_change_handler = handler
 
+    def bind_hover_validation(self, handler: Callable[[int, int], bool]) -> None:
+        self._hover_validation_handler = handler
+
     def current_mode(self) -> str:
         return self._mode_var.get()
 
@@ -125,12 +208,84 @@ class GomokuUI:
 
     def reset_board_view(self) -> None:
         self.canvas.delete("stone")
+        self.clear_overlays()
         self.draw_grid()
+
+    @staticmethod
+    def marker_color_for(player: Player) -> str:
+        if player == Player.BLACK:
+            return LAST_MOVE_MARK_WHITE_ON_BLACK
+        return LAST_MOVE_MARK_BLACK_ON_WHITE
+
+    @staticmethod
+    def should_show_hover(
+        is_on_board: bool, is_empty: bool, game_running: bool, ai_pending: bool
+    ) -> bool:
+        return is_on_board and is_empty and game_running and not ai_pending
+
+    def _draw_star_points(self) -> None:
+        for row, col in STAR_POINTS:
+            center_x = MARGIN + col * GRID_SPACING
+            center_y = MARGIN + row * GRID_SPACING
+            self.canvas.create_oval(
+                center_x - STAR_POINT_RADIUS,
+                center_y - STAR_POINT_RADIUS,
+                center_x + STAR_POINT_RADIUS,
+                center_y + STAR_POINT_RADIUS,
+                fill=BLACK_STONE_COLOR,
+                outline=BLACK_STONE_COLOR,
+                tags="star",
+            )
+
+    def _draw_last_move_marker(self, row: int, col: int, player: Player) -> None:
+        self.canvas.delete("last_move_marker")
+        center_x = MARGIN + col * GRID_SPACING
+        center_y = MARGIN + row * GRID_SPACING
+        marker_color = self.marker_color_for(player)
+        self.canvas.create_oval(
+            center_x - LAST_MOVE_MARK_RADIUS,
+            center_y - LAST_MOVE_MARK_RADIUS,
+            center_x + LAST_MOVE_MARK_RADIUS,
+            center_y + LAST_MOVE_MARK_RADIUS,
+            fill=marker_color,
+            outline=marker_color,
+            tags="last_move_marker",
+        )
+
+    def _draw_hover(self, row: int, col: int) -> None:
+        self.canvas.delete("hover")
+        center_x = MARGIN + col * GRID_SPACING
+        center_y = MARGIN + row * GRID_SPACING
+        self.canvas.create_oval(
+            center_x - HOVER_RADIUS,
+            center_y - HOVER_RADIUS,
+            center_x + HOVER_RADIUS,
+            center_y + HOVER_RADIUS,
+            fill=HOVER_FILL_COLOR,
+            outline=HOVER_OUTLINE_COLOR,
+            width=1,
+            tags="hover",
+        )
+        self._hover_cell = (row, col)
 
     def _on_canvas_click(self, event: tk.Event) -> None:
         row, col = self._pixel_to_grid(event.x, event.y)
         if self._board_click_handler is not None:
             self._board_click_handler(row, col)
+
+    def _on_canvas_motion(self, event: tk.Event) -> None:
+        row, col = self._pixel_to_grid(event.x, event.y)
+        if self._hover_validation_handler is None:
+            return
+        if not self._hover_validation_handler(row, col):
+            self.clear_hover()
+            return
+        if self._hover_cell == (row, col):
+            return
+        self._draw_hover(row, col)
+
+    def _on_canvas_leave(self, _event: tk.Event) -> None:
+        self.clear_hover()
 
     def _on_restart(self) -> None:
         if self._restart_handler is not None:

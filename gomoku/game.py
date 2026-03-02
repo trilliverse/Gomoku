@@ -60,10 +60,15 @@ class GameService:
 
         if self._rule_engine.check_win(self._board, row, col, self._current_player):
             winner = self._current_player
+            winning_line = self._rule_engine.find_winning_line(
+                self._board, row, col, winner
+            )
             self._phase = (
                 GamePhase.WIN_BLACK if winner == Player.BLACK else GamePhase.WIN_WHITE
             )
-            return MoveResult(ok=True, winner=winner, phase=self._phase)
+            return MoveResult(
+                ok=True, winner=winner, phase=self._phase, winning_line=winning_line
+            )
 
         if self._board.is_full():
             self._phase = GamePhase.DRAW

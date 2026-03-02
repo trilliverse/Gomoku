@@ -65,3 +65,32 @@ def test_edge_win() -> None:
     engine = RuleEngine()
     _place_many(board, [(r, 0, Player.BLACK) for r in range(5)])
     assert engine.check_win(board, 4, 0, Player.BLACK)
+
+
+def test_find_winning_line_returns_five_points() -> None:
+    board = Board()
+    engine = RuleEngine()
+    _place_many(board, [(7, c, Player.BLACK) for c in range(2, 7)])
+    line = engine.find_winning_line(board, 7, 6, Player.BLACK)
+    assert line is not None
+    assert len(line) == 5
+    assert line == [(7, 2), (7, 3), (7, 4), (7, 5), (7, 6)]
+
+
+def test_find_winning_line_on_overline_is_stable_five() -> None:
+    board = Board()
+    engine = RuleEngine()
+    _place_many(board, [(7, c, Player.WHITE) for c in range(1, 7)])
+    line = engine.find_winning_line(board, 7, 4, Player.WHITE)
+    assert line is not None
+    assert len(line) == 5
+    assert (7, 4) in line
+    assert line == [(7, 2), (7, 3), (7, 4), (7, 5), (7, 6)]
+
+
+def test_find_winning_line_diagonal() -> None:
+    board = Board()
+    engine = RuleEngine()
+    _place_many(board, [(i, i, Player.BLACK) for i in range(2, 7)])
+    line = engine.find_winning_line(board, 6, 6, Player.BLACK)
+    assert line == [(2, 2), (3, 3), (4, 4), (5, 5), (6, 6)]
