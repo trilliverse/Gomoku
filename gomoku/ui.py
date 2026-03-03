@@ -33,10 +33,14 @@ from .constants import (
     STAR_POINTS,
     STATUS_BG_COLOR,
     STATUS_BORDER_COLOR,
+    STATUS_LABEL_WIDTH,
+    STATUS_MAX_CHARS,
     STATUS_READY,
     STONE_RADIUS,
     UI_FONT_FAMILY,
     UI_FONT_SIZE,
+    WINDOW_EXTRA_HEIGHT,
+    WINDOW_EXTRA_WIDTH,
     WHITE_STONE_COLOR,
     WINDOW_TITLE,
     WIN_HIGHLIGHT_COLOR,
@@ -140,10 +144,12 @@ class GomokuUI:
             highlightthickness=1,
             highlightbackground=STATUS_BORDER_COLOR,
             padx=8,
+            width=STATUS_LABEL_WIDTH,
         )
         self.status_label.pack(side=tk.LEFT, padx=(12, 0), fill=tk.X, expand=True)
 
         self.draw_grid()
+        self._lock_window_size()
 
     def draw_grid(self) -> None:
         self.canvas.delete("grid")
@@ -201,7 +207,7 @@ class GomokuUI:
         self.canvas.delete("hover")
 
     def set_status(self, text: str) -> None:
-        self._status_var.set(text)
+        self._status_var.set(self._fit_status_text(text))
 
     def show_info(self, message: str) -> None:
         messagebox.showinfo("Gomoku", message)
@@ -359,6 +365,24 @@ class GomokuUI:
     def _on_mode_change(self) -> None:
         if self._mode_change_handler is not None:
             self._mode_change_handler(self._mode_var.get())
+
+    @staticmethod
+    def _fit_status_text(text: str) -> str:
+        if STATUS_MAX_CHARS <= 0:
+            return ""
+        if len(text) <= STATUS_MAX_CHARS:
+            return text
+        if STATUS_MAX_CHARS <= 3:
+            return "." * STATUS_MAX_CHARS
+        return f"{text[: STATUS_MAX_CHARS - 3]}..."
+
+    def _lock_window_size(self) -> None:
+        self.root.update_idletasks()
+        req_w = max(1, self.root.winfo_reqwidth() + WINDOW_EXTRA_WIDTH)
+        req_h = max(1, self.root.winfo_reqheight() + WINDOW_EXTRA_HEIGHT)
+        self.root.geometry(f"{req_w}x{req_h}")
+        self.root.minsize(req_w, req_h)
+        self.root.maxsize(req_w, req_h)
 
     @staticmethod
     def _pixel_to_grid(x: int, y: int) -> tuple[int, int]:

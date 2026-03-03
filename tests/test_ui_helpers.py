@@ -1,4 +1,8 @@
-from gomoku.constants import HOVER_GHOST_STIPPLE, STAR_POINTS
+from gomoku.constants import (
+    HOVER_GHOST_STIPPLE,
+    STAR_POINTS,
+    STATUS_MAX_CHARS,
+)
 from gomoku.models import Player
 from gomoku.ui import GomokuUI
 
@@ -32,3 +36,15 @@ def test_hover_style_follows_current_player() -> None:
 
 def test_hover_stipple_is_lighter() -> None:
     assert HOVER_GHOST_STIPPLE == "gray25"
+
+
+def test_fit_status_text_keeps_short_text() -> None:
+    text = "Current player: Black"
+    assert GomokuUI._fit_status_text(text) == text
+
+
+def test_fit_status_text_truncates_long_text() -> None:
+    long_text = "X" * (STATUS_MAX_CHARS + 10)
+    fitted = GomokuUI._fit_status_text(long_text)
+    assert len(fitted) == STATUS_MAX_CHARS
+    assert fitted.endswith("...")
