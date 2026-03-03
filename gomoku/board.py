@@ -29,6 +29,14 @@ class Board:
         self._grid[row][col] = player
         return True
 
+    def remove_stone(self, row: int, col: int) -> bool:
+        if not self.is_on_board(row, col):
+            return False
+        if self._grid[row][col] is None:
+            return False
+        self._grid[row][col] = None
+        return True
+
     def get_cell(self, row: int, col: int) -> Optional[Player]:
         if not self.is_on_board(row, col):
             return None

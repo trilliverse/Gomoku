@@ -54,6 +54,7 @@ class GomokuUI:
 
         self._board_click_handler: Optional[Callable[[int, int], None]] = None
         self._restart_handler: Optional[Callable[[], None]] = None
+        self._undo_handler: Optional[Callable[[], None]] = None
         self._mode_change_handler: Optional[Callable[[str], None]] = None
         self._hover_validation_handler: Optional[Callable[[int, int], bool]] = None
         self._hover_player_provider: Optional[Callable[[], Player]] = None
@@ -90,6 +91,19 @@ class GomokuUI:
             activebackground="#EFE5CC",
         )
         self.restart_button.pack(side=tk.LEFT, pady=2)
+
+        self.undo_button = tk.Button(
+            controls,
+            text="Undo",
+            width=10,
+            command=self._on_undo,
+            font=self._font,
+            bg="#F9F4E8",
+            relief=tk.GROOVE,
+            borderwidth=1,
+            activebackground="#EFE5CC",
+        )
+        self.undo_button.pack(side=tk.LEFT, padx=(8, 0), pady=2)
 
         mode_frame = tk.Frame(controls, bg=CONTROL_BG_COLOR)
         mode_frame.pack(side=tk.LEFT, padx=(12, 0))
@@ -201,6 +215,9 @@ class GomokuUI:
     def bind_restart(self, handler: Callable[[], None]) -> None:
         self._restart_handler = handler
 
+    def bind_undo(self, handler: Callable[[], None]) -> None:
+        self._undo_handler = handler
+
     def bind_mode_change(self, handler: Callable[[str], None]) -> None:
         self._mode_change_handler = handler
 
@@ -215,6 +232,9 @@ class GomokuUI:
 
     def schedule_after(self, ms: int, callback: Callable[[], None]) -> str:
         return str(self.root.after(ms, callback))
+
+    def cancel_after(self, task_id: str) -> None:
+        self.root.after_cancel(task_id)
 
     def reset_board_view(self) -> None:
         self.canvas.delete("stone")
@@ -331,6 +351,10 @@ class GomokuUI:
     def _on_restart(self) -> None:
         if self._restart_handler is not None:
             self._restart_handler()
+
+    def _on_undo(self) -> None:
+        if self._undo_handler is not None:
+            self._undo_handler()
 
     def _on_mode_change(self) -> None:
         if self._mode_change_handler is not None:

@@ -30,6 +30,13 @@ class GameMode(Enum):
     HUMAN_VS_AI = auto()
 
 
+class MoveError(Enum):
+    OUT_OF_BOARD = auto()
+    OCCUPIED = auto()
+    GAME_OVER = auto()
+    PLACE_FAILED = auto()
+
+
 @dataclass(frozen=True)
 class MoveResult:
     ok: bool
@@ -37,3 +44,4 @@ class MoveResult:
     winner: Player | None = None
     phase: GamePhase = GamePhase.RUNNING
     winning_line: list[tuple[int, int]] | None = None
+    error_code: MoveError | None = None

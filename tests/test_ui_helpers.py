@@ -1,4 +1,4 @@
-from gomoku.constants import STAR_POINTS
+from gomoku.constants import HOVER_GHOST_STIPPLE, STAR_POINTS
 from gomoku.models import Player
 from gomoku.ui import GomokuUI
 
@@ -28,3 +28,7 @@ def test_hover_style_follows_current_player() -> None:
     assert black_style != white_style
     assert black_style != fallback_style
     assert white_style != fallback_style
+
+
+def test_hover_stipple_is_lighter() -> None:
+    assert HOVER_GHOST_STIPPLE == "gray25"

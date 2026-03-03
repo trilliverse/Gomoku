@@ -12,7 +12,7 @@ from .constants import (
     STATUS_WIN_WHITE,
 )
 from .game import GameService
-from .models import GameMode, GamePhase, Player
+from .models import GameMode, GamePhase, MoveError, Player
 from .ui import GomokuUI
 
 
@@ -24,10 +24,12 @@ class GameController:
         self._mode = GameMode.HUMAN_VS_HUMAN
         self._ai_player = Player.WHITE
         self._ai_pending = False
+        self._ai_after_id: str | None = None
 
     def start(self) -> None:
         self._ui.bind_board_click(self.on_board_click)
         self._ui.bind_restart(self.on_restart)
+        self._ui.bind_undo(self.on_undo)
         self._ui.bind_mode_change(self.on_mode_change)
         self._ui.bind_hover_validation(self._can_show_hover)
         self._ui.bind_hover_player_provider(self._hover_player)
@@ -46,10 +48,9 @@ class GameController:
             self._schedule_ai_move()
 
     def on_restart(self) -> None:
-        self._ai_pending = False
+        self._cancel_ai_pending()
         self._game.new_game()
         self._ui.reset_board_view()
-        self._ui.clear_overlays()
         self._ui.set_status(self._current_player_status())
 
     def on_mode_change(self, mode_value: str) -> None:
@@ -60,15 +61,37 @@ class GameController:
         )
         self.on_restart()
 
+    def on_undo(self) -> None:
+        if self._game.phase() != GamePhase.RUNNING:
+            self._ui.set_status("Cannot undo after game over.")
+            return
+
+        if self._mode == GameMode.HUMAN_VS_HUMAN:
+            steps = 1
+        else:
+            if self._ai_pending:
+                self._cancel_ai_pending()
+                steps = 1
+            else:
+                steps = 2
+
+        if not self._game.undo(steps):
+            self._ui.set_status("No moves to undo.")
+            return
+
+        self._redraw_from_board()
+        self._ui.set_status(self._current_player_status())
+
     def _schedule_ai_move(self) -> None:
         if self._ai_pending or not self._is_ai_turn():
             return
         self._ai_pending = True
         self._ui.clear_hover()
         self._ui.set_status(STATUS_AI_THINKING)
-        self._ui.schedule_after(300, self._execute_ai_move)
+        self._ai_after_id = self._ui.schedule_after(300, self._execute_ai_move)
 
     def _execute_ai_move(self) -> None:
+        self._ai_after_id = None
         if not self._ai_pending:
             return
         self._ai_pending = False
@@ -117,7 +140,7 @@ class GameController:
         if not result.ok:
             message = result.reason or "Invalid move."
             self._ui.set_status(message)
-            if show_warning:
+            if show_warning and result.error_code != MoveError.OCCUPIED:
                 self._ui.show_warning(message)
             return False
 
@@ -167,3 +190,15 @@ class GameController:
 
     def _hover_player(self) -> Player:
         return self._game.current_player()
+
+    def _cancel_ai_pending(self) -> None:
+        if self._ai_after_id is not None:
+            self._ui.cancel_after(self._ai_after_id)
+            self._ai_after_id = None
+        self._ai_pending = False
+        self._ui.clear_hover()
+
+    def _redraw_from_board(self) -> None:
+        self._ui.reset_board_view()
+        for row, col, player in self._game.move_history():
+            self._ui.draw_stone(row, col, player)
